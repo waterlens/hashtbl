@@ -19,8 +19,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "komihash.h"
 
@@ -268,19 +268,21 @@ hashtbl_group_match_empty_or_deleted(const group_t *gp) {
 
 static inline uint32_t
 hashtbl_group_count_leading_empty_or_deleted(const group_t *gp) {
-  uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(*gp), 0);
-  uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
-  return (__clsll(__rbitll((~mask & (mask >> 7)) | gaps)) + 8) >> 3;
+  uint64_t mask =
+      vget_lane_u64(vreinterpret_u64_u8(vcle_s8(vdup_n_s8(CTRL_SENTINEL.x),
+                                                vreinterpret_s8_u8(*gp))),
+                    0);
+  return (uint32_t)ctz(mask) >> 3;
 }
 
 static inline void
 hashtbl_group_convert_special_to_empty_and_full_to_deleted(const group_t *gp,
                                                            ctrl_t *dst) {
   uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(*gp), 0);
-  uint64_t msbs = 0x8080808080808080ULL;
-  uint64_t lsbs = 0x0101010101010101ULL;
-  uint64_t x = mask & msbs;
-  uint64_t res = (~x + (x >> 7)) & ~lsbs;
+  uint64_t slsbs = 0x0202020202020202ULL;
+  uint64_t midbs = 0x7e7e7e7e7e7e7e7eULL;
+  uint64_t x = slsbs & (mask >> 6);
+  uint64_t res = (x + midbs) | 0x8080808080808080ULL;
   vst1_u8((uint8_t *)dst, (uint8x8_t)res);
 }
 #endif

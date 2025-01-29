@@ -11,32 +11,44 @@ HASHMAP_NEW_KIND(i64map, int64_t, int64_t, 8, DEFAULT_ALLOC, DEFAULT_COPY,
                  DEFAULT_INIT, DEFAULT_MOVE)
 
 int main() {
+  int MAX_SIZE = 1000000;
+
   i64map_t *map = i64map_new(10);
 
   size_t s = i64map_size(map);
   assert(s == 0);
 
-  int64_t keys[][2] = {
-      {1, 2}, {2, 3}, {3, 4}, {4, 5},  {5, 6},
-      {6, 7}, {7, 8}, {8, 9}, {9, 10}, {10, 11},
-  };
-
-  for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
-    i64map_insert_t ins = i64map_deferred_insert(&map, &keys[i][0]);
+  for (size_t i = 0; i < MAX_SIZE; i++) {
+    int64_t key = i;
+    i64map_insert_t ins = i64map_deferred_insert(&map, &key);
     i64map_entry_t *entry = i64map_iter_get(&ins.iter);
-    entry->key = keys[i][0];
-    entry->val = keys[i][1];
+    entry->key = key;
+    entry->val = MAX_SIZE - i;
   }
 
   s = i64map_size(map);
-  assert(s == 10);
+  assert(s == MAX_SIZE);
 
-  for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
-    i64map_iter_t iter = i64map_find(map, &keys[i][0]);
-    i64map_entry_t *entry = i64map_iter_get(&iter);
-    assert(entry->key == keys[i][0]);
-    assert(entry->val == keys[i][1]);
+  for (size_t i = 0; i < MAX_SIZE; i++) {
+    int64_t key = i;
+    i64map_iter_t it = i64map_find(map, &key);
+    i64map_entry_t *entry = i64map_iter_get(&it);
+    assert(entry->key == key);
+    assert(entry->val == MAX_SIZE - i);
   }
+
+  i64map_iter_t it = i64map_iter(map);
+
+  size_t n = 0;
+  for (;; n++) {
+    i64map_entry_t *entry = i64map_iter_get(&it);
+    if (entry == NULL)
+      break;
+    assert(entry->key + entry->val == MAX_SIZE);
+    i64map_iter_next(&it);
+  }
+
+  assert(n == MAX_SIZE);
 
   i64map_destroy(map);
   return 0;
