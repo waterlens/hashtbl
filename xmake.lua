@@ -4,6 +4,7 @@ set_languages("c99")
 
 target("hashtbl")
     set_kind("binary")
+    add_headerfiles("*.h")
     add_files("*.c")
 
 --
