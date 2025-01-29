@@ -22,7 +22,7 @@ int main() {
   };
 
   for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
-    i64map_insert_t ins = i64map_insert(&map, &keys[i][0]);
+    i64map_insert_t ins = i64map_deferred_insert(&map, &keys[i][0]);
     i64map_entry_t *entry = i64map_iter_get(&ins.iter);
     entry->key = keys[i][0];
     entry->val = keys[i][1];
