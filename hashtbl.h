@@ -29,7 +29,9 @@ typedef __m128i group_t;
 #define GROUP_WIDTH 16
 #define GROUP_SHIFT 0
 #elif defined(__aarch64__) && defined(__ARM_NEON)
+#ifndef SSE2NEON_SUPPRESS_WARNINGS
 #define SSE2NEON_SUPPRESS_WARNINGS
+#endif
 #include "sse2neon.h"
 typedef __m128i group_t;
 #define GROUP_WIDTH 16
