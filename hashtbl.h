@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "komihash.h"
 
@@ -28,14 +29,12 @@
 typedef __m128i group_t;
 #define GROUP_WIDTH 16
 #define GROUP_SHIFT 0
-#elif defined(__aarch64__) && defined(__ARM_NEON)
-#ifndef SSE2NEON_SUPPRESS_WARNINGS
-#define SSE2NEON_SUPPRESS_WARNINGS
-#endif
-#include "sse2neon.h"
-typedef __m128i group_t;
-#define GROUP_WIDTH 16
-#define GROUP_SHIFT 0
+#elif defined(__aarch64__) && defined(__ARM_NEON) && defined(__ARM_ACLE)
+#include <arm_acle.h>
+#include <arm_neon.h>
+typedef uint8x8_t group_t;
+#define GROUP_WIDTH 8
+#define GROUP_SHIFT 3
 #elif
 #error "Unsupported architecture"
 #endif
@@ -243,38 +242,46 @@ hashtbl_group_convert_special_to_empty_and_full_to_deleted(const group_t *gp,
 #elif defined(__aarch64__) && defined(__ARM_NEON)
 
 static inline group_t hashtbl_group_new(const ctrl_t *pos) {
-  return _mm_loadu_si128((const group_t *)pos);
+  return vld1_u8((const uint8_t *)pos);
 }
 
 static inline struct bitmask hashtbl_group_match(const group_t *gp, h2_t hash) {
   return group_bitmask(
-      _mm_movemask_epi8(_mm_cmpeq_epi8(_mm_set1_epi8(hash), *gp)));
+      vget_lane_u64(vreinterpret_u64_u8((vceq_u8(vdup_n_u8(hash), *gp))), 0) &
+      0x8080808080808080ULL);
 }
 
 static inline struct bitmask hashtbl_group_match_empty(const group_t *gp) {
-  return group_bitmask(_mm_movemask_epi8(_mm_sign_epi8(*gp, *gp)));
+  return group_bitmask(
+      vget_lane_u64(vreinterpret_u64_u8(vceq_s8(vdup_n_s8(CTRL_EMPTY.x),
+                                                vreinterpret_s8_u8(*gp))),
+                    0));
 }
 
 static inline struct bitmask
 hashtbl_group_match_empty_or_deleted(const group_t *gp) {
   return group_bitmask(
-      _mm_movemask_epi8(_mm_cmpgt_epi8(_mm_set1_epi8(CTRL_SENTINEL.x), *gp)));
+      vget_lane_u64(vreinterpret_u64_u8(vcgt_s8(vdup_n_s8(CTRL_SENTINEL.x),
+                                                vreinterpret_s8_u8(*gp))),
+                    0));
 }
 
 static inline uint32_t
 hashtbl_group_count_leading_empty_or_deleted(const group_t *gp) {
-  return ctz((uint32_t)(_mm_movemask_epi8(_mm_cmpgt_epi8(
-                            _mm_set1_epi8(CTRL_SENTINEL.x), *gp)) +
-                        1));
+  uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(*gp), 0);
+  uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
+  return (__clsll(__rbitll((~mask & (mask >> 7)) | gaps)) + 8) >> 3;
 }
 
 static inline void
 hashtbl_group_convert_special_to_empty_and_full_to_deleted(const group_t *gp,
                                                            ctrl_t *dst) {
-  group_t msbs = _mm_set1_epi8((char)-128);
-  group_t x126 = _mm_set1_epi8(126);
-  group_t res = _mm_or_si128(_mm_shuffle_epi8(x126, *gp), msbs);
-  _mm_storeu_si128((group_t *)dst, res);
+  uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(*gp), 0);
+  uint64_t msbs = 0x8080808080808080ULL;
+  uint64_t lsbs = 0x0101010101010101ULL;
+  uint64_t x = mask & msbs;
+  uint64_t res = (~x + (x >> 7)) & ~lsbs;
+  vst1_u8((uint8_t *)dst, (uint8x8_t)res);
 }
 #endif
 
