@@ -52,7 +52,16 @@ _Static_assert(sizeof(ctrl_t) == 1, "ctrl_t must be 1 byte");
 #define CTRL_DELETED ((ctrl_t){.x = -2})
 #define CTRL_SENTINEL ((ctrl_t){.x = -1})
 
+#ifdef __has_attribute
+#if __has_attribute(maybe_unused)
 #define MAYBEUNUSED [[maybe_unused]]
+#else
+#define MAYBEUNUSED __attribute__((unused))
+#endif
+#else
+#define MAYBEUNUSED __attribute__((unused))
+#endif
+
 #define HASHTBL_META(X_, NAME_) NAME_##_##X_
 #define HASHTBL_INTERNAL_META(X_, NAME_) X_##_of_##NAME_
 
@@ -285,6 +294,8 @@ hashtbl_group_convert_special_to_empty_and_full_to_deleted(const group_t *gp,
   uint64_t res = (~x + (x >> 7)) & ~lsbs;
   *(uint64_t *)dst = res;
 }
+#else
+#error "Unsupported architecture"
 #endif
 
 #define probe_seq(x, y) ((struct probe_seq){.mask = y, .offset = x & y})
@@ -330,12 +341,12 @@ static inline size_t hashtbl_random_seed(void) {
   return value ^ ((size_t)&counter);
 }
 
-[[maybe_unused]]
+MAYBEUNUSED
 static bool hashtbl_should_insert_backwards(size_t hash, const ctrl_t *ctrl) {
   return (h1_hash(hash, ctrl) ^ hashtbl_random_seed()) % 13 > 6;
 }
 
-[[maybe_unused]]
+MAYBEUNUSED
 static void
 hashtbl_convert_deleted_to_empty_and_full_to_deleted(ctrl_t *ctrl,
                                                      size_t capacity) {
@@ -469,8 +480,8 @@ static inline bool hashtbl_is_small(size_t capacity) {
                                        SLOT_SIZE_)                             \
   static inline void *HASHTBL_INTERNAL_META(hashtbl_iter_get, NAME_)(          \
       const struct hashtbl_iterator *it) {                                     \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     HASHTBL_ASSERT_IS_VALID(it->ctrl);                                         \
     if (it->slot == NULL)                                                      \
@@ -540,8 +551,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
                                             SLOT_ALIGN_, SLOT_SIZE_)           \
   static inline void HASHTBL_INTERNAL_META(hashtbl_destroy_slots,              \
                                            NAME_)(struct hashtbl * tbl) {      \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     if (!tbl->capacity)                                                        \
       return;                                                                  \
@@ -557,8 +568,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
                                      SLOT_SIZE_)                               \
   static inline struct hashtbl *HASHTBL_INTERNAL_META(hashtbl_resize, NAME_)(  \
       struct hashtbl * tbl, size_t new_capacity) {                             \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     HASHTBL_DCHECK(hashtbl_is_valid_capacity(new_capacity),                    \
                    "invalid capacity: %zu", new_capacity);                     \
@@ -569,7 +580,7 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
     struct hashtbl *new_tbl = HASHTBL_INTERNAL_META(                           \
         hashtbl_alloc_new_table, NAME_)(new_capacity, tbl->size);              \
                                                                                \
-    [[maybe_unused]] size_t total_probe_length = 0;                            \
+    MAYBEUNUSED size_t total_probe_length = 0;                                 \
     for (size_t i = 0; i != old_capacity; ++i) {                               \
       if (hashtbl_ctrl_is_full(old_ctrl[i])) {                                 \
         size_t hash = HASH_(GET_(old_slots + i * SLOT_SIZE_));                 \
@@ -593,8 +604,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
     SLOT_ALIGN_, SLOT_SIZE_)                                                   \
   static void HASHTBL_INTERNAL_META(hashtbl_drop_deletes_without_resize,       \
                                     NAME_)(struct hashtbl * tbl) {             \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     HASHTBL_DCHECK(hashtbl_is_valid_capacity(tbl->capacity),                   \
                    "invalid capacity: %zu", tbl->capacity);                    \
@@ -603,7 +614,7 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
     hashtbl_convert_deleted_to_empty_and_full_to_deleted(tbl->ctrl,            \
                                                          tbl->capacity);       \
                                                                                \
-    [[maybe_unused]] size_t total_probe_length = 0;                            \
+    MAYBEUNUSED size_t total_probe_length = 0;                                 \
     void *slot = ALLOC_(SLOT_SIZE_);                                           \
                                                                                \
     for (size_t i = 0; i != tbl->capacity; ++i) {                              \
@@ -695,8 +706,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
   static inline struct prepare_insert HASHTBL_INTERNAL_META(                   \
       hashtbl_find_or_prepare_insert, NAME_)(struct hashtbl * *ptbl,           \
                                              const void *key) {                \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     size_t hash = HASH_(key);                                                  \
     struct hashtbl *tbl = *ptbl;                                               \
@@ -728,8 +739,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
                                          SLOT_ALIGN_, SLOT_SIZE_)              \
   static inline void *HASHTBL_INTERNAL_META(hashtbl_pre_insert, NAME_)(        \
       struct hashtbl * tbl, size_t i) {                                        \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     void *dst = tbl->slots + i * SLOT_SIZE_;                                   \
     INIT_(dst);                                                                \
@@ -764,8 +775,8 @@ static inline void hashtbl_reset_available(struct hashtbl *tbl) {
                                       SLOT_SIZE_)                              \
   static inline void HASHTBL_INTERNAL_META(hashtbl_destroy,                    \
                                            NAME_)(struct hashtbl * tbl) {      \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     HASHTBL_INTERNAL_META(hashtbl_destroy_slots, NAME_)(tbl);                  \
     FREE_(tbl,                                                                 \
@@ -789,8 +800,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
                                     SLOT_SIZE_)                                \
   static inline void HASHTBL_INTERNAL_META(hashtbl_clear,                      \
                                            NAME_)(struct hashtbl * tbl) {      \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     if (tbl->capacity) {                                                       \
       for (size_t i = 0; i != tbl->capacity; ++i)                              \
@@ -826,8 +837,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
                                      SLOT_SIZE_)                               \
   static inline struct insert HASHTBL_INTERNAL_META(hashtbl_insert, NAME_)(    \
       struct hashtbl * *ptbl, const void *val) {                               \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     struct prepare_insert res = HASHTBL_INTERNAL_META(                         \
         hashtbl_find_or_prepare_insert, NAME_)(ptbl, val);                     \
@@ -848,8 +859,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
   static inline struct hashtbl_iterator HASHTBL_INTERNAL_META(                 \
       hashtbl_find_hinted, NAME_)(const struct hashtbl *tbl, const void *key,  \
                                   size_t hash) {                               \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     struct probe_seq seq =                                                     \
         hashtbl_probe_seq_start(tbl->ctrl, hash, tbl->capacity);               \
@@ -875,8 +886,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
   static inline struct hashtbl_iterator HASHTBL_INTERNAL_META(                 \
       hashtbl_find_hinted_by_##S_, NAME_)(const struct hashtbl *tbl,           \
                                           const void *key, size_t hash) {      \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     struct probe_seq seq =                                                     \
         hashtbl_probe_seq_start(tbl->ctrl, hash, tbl->capacity);               \
@@ -903,8 +914,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
                                    SLOT_SIZE_)                                 \
   static inline struct hashtbl_iterator HASHTBL_INTERNAL_META(                 \
       hashtbl_find, NAME_)(const struct hashtbl *tbl, const void *key) {       \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     return HASHTBL_INTERNAL_META(hashtbl_find_hinted, NAME_)(tbl, key,         \
                                                              HASH_(key));      \
@@ -914,8 +925,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
   static inline struct hashtbl_iterator HASHTBL_INTERNAL_META(                 \
       hashtbl_find_by_##S_, NAME_)(const struct hashtbl *tbl,                  \
                                    const void *key) {                          \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     return HASHTBL_INTERNAL_META(hashtbl_find_hinted_by_##S_,                  \
                                  NAME_)(tbl, key, HASH2_(key));                \
@@ -926,8 +937,8 @@ static inline size_t hashtbl_capacity(const struct hashtbl *tbl) {
                                        SLOT_SIZE_)                             \
   static inline void HASHTBL_INTERNAL_META(hashtbl_erase_at, NAME_)(           \
       struct hashtbl_iterator it) {                                            \
-    [[maybe_unused]] typedef HASHTBL_META(key_t, NAME_) this_key_type_;        \
-    [[maybe_unused]] typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;    \
+    MAYBEUNUSED typedef HASHTBL_META(key_t, NAME_) this_key_type_;             \
+    MAYBEUNUSED typedef HASHTBL_META(entry_t, NAME_) this_entry_type_;         \
                                                                                \
     HASHTBL_ASSERT_IS_FULL(it.ctrl);                                           \
     DEL_(it.slot);                                                             \
@@ -1339,7 +1350,8 @@ static inline uint64_t hashtbl_default_hash(const void *data, size_t size) {
 }
 
 #define DEFAULT_ALLOC(size) hashtbl_default_alloc((size))
-#define DEFAULT_COPY(dst, src) memcpy((dst), (src), sizeof(this_entry_type_))
+#define DEFAULT_COPY(dst, src)                                                 \
+  memcpy((void *)(dst), (void *)(src), sizeof(this_entry_type_))
 #define DEFAULT_DEL(x) ((void)(x))
 #define DEFAULT_EQ(x, y) (memcmp((x), (y), sizeof(this_key_type_)) == 0)
 #define DEFAULT_FREE(x, size) hashtbl_default_free((x), (size))

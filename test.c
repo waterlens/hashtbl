@@ -11,7 +11,7 @@ HASHMAP_NEW_KIND(i64map, int64_t, int64_t, 8, DEFAULT_ALLOC, DEFAULT_COPY,
                  DEFAULT_INIT, DEFAULT_MOVE)
 
 int main() {
-  int MAX_SIZE = 1000000;
+  size_t MAX_SIZE = 1000000;
 
   i64map_t *map = i64map_new(10);
 
@@ -33,8 +33,8 @@ int main() {
     int64_t key = i;
     i64map_iter_t it = i64map_find(map, &key);
     i64map_entry_t *entry = i64map_iter_get(&it);
-    assert(entry->key == key);
-    assert(entry->val == MAX_SIZE - i);
+    assert(entry->key == (int64_t)key);
+    assert(entry->val == (int64_t)(MAX_SIZE - i));
   }
 
   i64map_iter_t it = i64map_iter(map);
@@ -44,7 +44,7 @@ int main() {
     i64map_entry_t *entry = i64map_iter_get(&it);
     if (entry == NULL)
       break;
-    assert(entry->key + entry->val == MAX_SIZE);
+    assert(entry->key + entry->val == (int64_t)MAX_SIZE);
     i64map_iter_next(&it);
   }
 
