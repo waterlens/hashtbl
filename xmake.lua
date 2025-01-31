@@ -6,6 +6,7 @@ target("hashtbl")
     set_kind("binary")
     add_headerfiles("*.h")
     add_files("*.c")
+    add_cflags("-march=native")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

@@ -25,7 +25,7 @@
 #include "komihash.h"
 
 #if defined(__x86_64__) && defined(__SSE3__)
-#include <emmintrin.h>
+#include <immintrin.h>
 typedef __m128i group_t;
 #define GROUP_WIDTH 16
 #define GROUP_SHIFT 0
@@ -35,7 +35,7 @@ typedef __m128i group_t;
 typedef uint8x8_t group_t;
 #define GROUP_WIDTH 8
 #define GROUP_SHIFT 3
-#elif
+#else
 #error "Unsupported architecture"
 #endif
 
