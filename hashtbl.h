@@ -1358,7 +1358,8 @@ static inline uint64_t hashtbl_default_hash(const void *data, size_t size) {
 #define DEFAULT_GET(x) ((this_entry_type_ *)(x))
 #define DEFAULT_HASH(x) hashtbl_default_hash((x), sizeof(this_key_type_))
 #define DEFAULT_INIT(x) ((void)(x))
-#define DEFAULT_MOVE(dst, src) memcpy((dst), (src), sizeof(this_entry_type_))
+#define DEFAULT_MOVE(dst, src)                                                 \
+  memcpy((void *)(dst), (void *)(src), sizeof(this_entry_type_))
 
 #define HASHMAP_NEW_KIND_WITH_DEFAULTS(NAME_, KEY_TYPE_, VAL_TYPE_, ALIGN_)    \
   HASHMAP_NEW_KIND(NAME_, KEY_TYPE_, VAL_TYPE_, ALIGN_, DEFAULT_ALLOC,         \
